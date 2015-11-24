@@ -90,7 +90,11 @@ class EglParser(object):
                 print "COMMENT"
                 continue
             
+            
             print "%s%s: %s" % ("    "*self.stat["indent"], iteration, line),
+            
+            if "#" in line:
+                line = line[:line.find("#")]
             
             
             #handle with statements
@@ -183,7 +187,7 @@ class EglParser(object):
             self.printSuccess(
             "CIRCLE(x=%s, y=%s, r=%s, col=%s)" % (x, y, r, col))
             draw = self.getDraw()
-            draw.ellipse((x-r/2, y-r/2, x+r/2, y+r/2))
+            draw.ellipse((x-r/2, y-r/2, x+r/2, y+r/2), fill=col)
             #ellipse(self, xy, fill=None, outline=None)
         
     def handleLine(self, args, useWith):
@@ -211,8 +215,9 @@ class EglParser(object):
         else:
             w = self.getValue("W")
             h = self.getValue("H")
+            bg_col = self.getValue("BG")
             if w is not None and h is not None:
-                self.im = Image.new("RGB", (w, h))
+                self.im = Image.new("RGB", (w, h), color=bg_col)
             else:
                 self.printError("Lacking variables W and H, can't create image!")
     
@@ -234,7 +239,7 @@ class EglParser(object):
 
 if __name__ == "__main__":
     if len(sys.argv) >= 2:
-        lines = open(sys.argv[1]).read().split()
+        lines = open(sys.argv[1]).read().split("\n")
     else:
         #args = "test.egl"
         lines = """
@@ -245,7 +250,7 @@ if __name__ == "__main__":
         line 10, 10, 400, 10 with COLOR = (0, 0, 255)
         line 10, 10, 10, 400 with COLOR = (250, 0, 0)
         #save "out.png"
-        save
+        save #default is temp.png
         
         #circle 30, 40 with COLOR = (20, 30, 40)
         
