@@ -1,0 +1,77 @@
+#Capitalized words are built-ins
+SIZE = 300, 300 #change image size to 300x300
+BG = GREEN #set to background color to green
+
+COLOR = #ff0000
+
+line 0, 0, W, H
+
+text "Hello, world!", (10, 10)
+text "Hello, world!" where POS = (10, 10)
+text "Hello, world!" where POS = (10, 10) and COLOR = GREEN
+
+#horizontal, vertical lines
+hline 0
+vline 20 with COLOR = RED
+
+#box function builtin
+x = W//8
+y = H//8
+boxW = boxH = 80
+box x, y, +boxW, +boxH with COLOR = BLACK
+
+
+circle HW, HH, 20 #draws circle at position H//2, W//2 with radius 20
+POS = HW, HH
+circle #draws circle at position HW, HH with default radius=16
+circle with POS = HW, HH; RADIUS = 8 #draws circle at position HW, HH with radius 8
+#full definition: circle [x, y[, radius[, color]]]
+
+blit "player.png", QW, QH #blits image 'player.png' (loading it if neccesary) to W//4, H//4
+
+load "banana.png" #explicitly load image banana.png
+
+
+#draw an apple to the screen at mouse position as quickly as possible
+myImage = load "apple.png"
+while TRUE:
+    px, py = MOUSE
+    blit myImage, px, py
+
+#lazy loading:
+while TRUE:
+    blit "apple.png", MOUSE_X, MOUSE_Y
+
+#only draw (approximately!) 30 frames per second
+myImage = load "apple.png"
+FPS = 60
+while TRUE:
+    px, py = MOUSE
+    blit myImage, px, py
+    sleepframes 5
+
+
+#make a gif of a red ball that's moving from left to right on a light grey background at 10 fps
+SIZE = 500, 500
+BG = LIGHTGREY #default is white
+COLOR = RED #otherwise default is BLACK
+y = HH
+x = 10
+while x + 10 < W:
+    clear #clears image
+    circle x, y, 16 #draw's circle with radius 16 to position x, y
+    x += 10
+    save "ball_" + x//10 + ".gif"
+makegif "ball_moving.gif" with DT = 0.1
+
+
+#triangle x1,y1, x2,y2, x3,y3[, COLOR[, FILLED]]
+triangle 0,0, 30,0, 40,0 with FILLED = TRUE
+
+
+
+run "loadimages.egl"
+run "setupimage.egl"
+filenames = system "ls"
+
+
