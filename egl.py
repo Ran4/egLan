@@ -1,5 +1,6 @@
 import sys
 from termcolor import colored
+import math
 
 from PIL import Image
 from PIL import ImageDraw
@@ -22,7 +23,7 @@ class EglParser(object):
             "BG":(255,255,255),
             "COLOR":(0,0,0),
             "RADIUS": 16,
-            "FILENAME":"temp.png",
+            "FILENAME":"out.png",
             "W":500,
             "H":500,
         }
@@ -43,10 +44,55 @@ class EglParser(object):
             return self.d[key]
         else:
             if useWith:
-                print "Can't find value '%s' in self.d or self.w" % key
+                self.printWarning("Can't find value '%s' in dictionary!" % key)
             else:
-                print "Can't find value '%s' in self.d, can't check self.w"%key
+                self.printWarning("Can't find value '%s' in dictionary!" % key)
             return None
+        
+    def getArgOrEval(self, arg, useWith=False):
+        #"W//2" -> "800//2" -> 400
+        #print "in getArgsOrEval, arg='%s'" % arg
+        
+        variableName = ""
+        i = 0
+        startReplaceWord = False
+        while i < len(arg):
+            #vars starts with ABC.., can contain 0123.. but not at the beginning
+            if arg[i] in "ABCDEFGHIJKLMNOPQRSTUVWYZ_" or \
+                    len(variableName) > 0 and arg[i] in "0123456789":
+                variableName += arg[i]
+                #print "variableName=<%s>" % (variableName)
+            else:
+                if variableName:
+                    startReplaceWord = True
+                
+            if variableName and (startReplaceWord or i == (len(arg) - 1)):
+                startReplaceWord = False
+                
+                #print "trying to look up '%s'" % variableName
+                
+                if variableName in self.w and useWith:
+                    replacedVal = str(self.w[variableName])
+                elif variableName in self.d:
+                    replacedVal = str(self.d[variableName])
+                else:
+                    print "Couldnt' find %s in dictionary!" % variableName
+                    replacedVal = variableName
+                
+                #print "arg before: '%s'" % arg
+                arg = arg.replace(variableName, replacedVal)
+                i = -1
+                #print "arg after:  '%s'" % arg
+                variableName = ""
+            i += 1
+                
+        if not arg:
+            self.printError("arg is empty!")
+            return None
+        
+        finalValue = eval(arg)
+        #print "finalValue:", finalValue
+        return finalValue
         
     def printSuccess(self, s):
         print colored(self.getIndentString() + s, "green")
@@ -62,7 +108,8 @@ class EglParser(object):
         #red, green, yellow, blue, magenta, cyan, white.
         
     def printNotImplemented(self, s):
-        print colored("%sNOT IMPLEMENTED (%s)" % (self.getIndentString(), s), "cyan")
+        print colored("%sNOT IMPLEMENTED (%s)" % \
+                (self.getIndentString(), s), "cyan")
     
     def stripSeq(self, seq):
         return [x.strip() for x in seq if x.strip()]
@@ -87,7 +134,7 @@ class EglParser(object):
                 continue
             
             if line.startswith("#"):
-                print "COMMENT"
+                #print "COMMENT"
                 continue
             
             
@@ -112,6 +159,9 @@ class EglParser(object):
             #regular handling
             if line == "clear":
                 self.clear()
+            elif line.startswith("echo"):
+                args = self.stripSeq(line[len("echo"):].split(","))
+                self.handleEcho(args, useWith)
             elif line.startswith("save"):
                 args = self.stripSeq(line[len("save"):].split(","))
                 self.handleSave(args, useWith)
@@ -121,10 +171,8 @@ class EglParser(object):
             elif line.startswith("line "):
                 args = self.stripSeq(line[len("line"):].split(","))
                 self.handleLine(args, useWith)
-                
             elif line.startswith("hline "):
                 self.printNotImplemented("hline")
-
             elif line.startswith("circle"):
                 args = self.stripSeq(line[len("circle"):].split(","))
                 self.handleCircle(args, useWith)
@@ -132,8 +180,19 @@ class EglParser(object):
             elif line.count("=") > 0:
                 self.handleAssignment(line, dictionary)
             else:
-                print colored("%sUNKNOWN line '%s'" % (self.getIndentString(), line), "yellow")
+                print colored("%sUNKNOWN COMMAND '%s'" % \
+                        (self.getIndentString(), line), "yellow")
                 
+    def handleEcho(self, args, useWith):
+        gv = self.getValue
+        
+        valuesToShow = []
+        for arg in args:
+            val = gv(arg, useWith)
+            valuesToShow.append("%s == %s" % (arg, val))
+        
+        self.printValueSet(", ".join(valuesToShow))
+    
     def handleSave(self, args, useWith):
         gv = self.getValue
         fileName = eval(args[0]) if len(args) > 0 else gv("FILENAME", useWith)
@@ -162,8 +221,9 @@ class EglParser(object):
             d[a[0]] = newVal = eval(a[1])
             newValTypeStr = str(type(newVal))
             
-            self.printValueSet("%s = %s%s %s" % (a[0], a[1], "" if a[0] in d.keys() else " (NEW)",
-                newValTypeStr + d["_ID"]))
+            self.printValueSet("%s = %s%s %s" % \
+                    (a[0], a[1], "" if a[0] in d.keys() else " (NEW)",
+                    newValTypeStr + d["_ID"]))
         elif len(a) > 2:
             #a = b = c => b = c, a = b
             for i in range(len(a)-1, 1, -1):
@@ -192,11 +252,12 @@ class EglParser(object):
         
     def handleLine(self, args, useWith):
         gv = self.getValue
-        x1 = eval(args[0]) if len(args) > 0 else gv("X", useWith)
-        y1 = eval(args[1]) if len(args) > 1 else gv("Y", useWith)
-        x2 = eval(args[2]) if len(args) > 2 else gv("X2", useWith)
-        y2 = eval(args[3]) if len(args) > 3 else gv("Y2", useWith)
-        col = eval(args[4]) if len(args) > 4 else gv("COLOR", useWith)
+        gaoe = self.getArgOrEval
+        x1 = gaoe(args[0], useWith) if len(args) > 0 else gv("X", useWith)
+        y1 = gaoe(args[1]) if len(args) > 1 else gv("Y", useWith)
+        x2 = gaoe(args[2]) if len(args) > 2 else gv("X2", useWith)
+        y2 = gaoe(args[3]) if len(args) > 3 else gv("Y2", useWith)
+        col = gaoe(args[4]) if len(args) > 4 else gv("COLOR", useWith)
         
         if x1 is None: self.printError("no x1 given")
         elif y1 is None: self.printError("no y1 given")
@@ -219,7 +280,8 @@ class EglParser(object):
             if w is not None and h is not None:
                 self.im = Image.new("RGB", (w, h), color=bg_col)
             else:
-                self.printError("Lacking variables W and H, can't create image!")
+                self.printError(
+                        "Lacking variables W and H, can't create image!")
     
         return self.im
     
@@ -236,21 +298,66 @@ class EglParser(object):
         self.printError("Problem getting ImageDraw.Draw function!")
         return None
                             
+def testGetArgOrEval():
+    eglParser = EglParser()
+    assert(eglParser.getArgOrEval("2") == 2)
+    eglParser = EglParser()
+    assert(eglParser.getArgOrEval("") == None)
+    eglParser = EglParser()
+    assert(eglParser.getArgOrEval("23") == 23)
+    eglParser = EglParser()
+    assert(eglParser.getArgOrEval("1 + 2") == 3)
+    eglParser = EglParser()
+    assert(eglParser.getArgOrEval("1 + 2 + 3") == 6)
+    
+    eglParser = EglParser()
+    eglParser.run(["W = 300"])
+    assert(eglParser.getArgOrEval("W") == 300)
+    
+    eglParser = EglParser()
+    eglParser.run(["W = 300"])
+    assert(eglParser.getArgOrEval("W+W") == 600)
+    
+    eglParser = EglParser()
+    eglParser.run(["W = 300", "H = 200"])
+    assert(eglParser.getArgOrEval("W+H") == 500)
+    
+    eglParser = EglParser()
+    eglParser.run(["ABC = 300", "DEF = 200"])
+    assert(eglParser.getArgOrEval("ABC+DEF") == 500)
+    
+    eglParser = EglParser()
+    eglParser.run(["ABC = 50"])
+    assert(eglParser.getArgOrEval("2*ABC") == 100)
+    
+    eglParser = EglParser()
+    eglParser.run(["ABC = 50"])
+    assert(eglParser.getArgOrEval("ABC") == 50)
+    
+    eglParser = EglParser()
+    eglParser.run(["ABC = 1.0"])
+    assert(abs(eglParser.getArgOrEval("ABC*math.pi") - math.pi) < 0.001)
+    
+    print colored("Successfully tested everything!", "green")
 
 if __name__ == "__main__":
+   
     if len(sys.argv) >= 2:
         lines = open(sys.argv[1]).read().split("\n")
     else:
-        #args = "test.egl"
+        testGetArgOrEval()
+        
         lines = """
-        RADIUS = 20
-        circle 30
-        circle 30, 40
-        line 10, 10, 400, 400 with COLOR = (0, 192, 0)
-        line 10, 10, 400, 10 with COLOR = (0, 0, 255)
-        line 10, 10, 10, 400 with COLOR = (250, 0, 0)
+        #echo W, H, FILENAME, LOL with LOL = 3
+        
+        #RADIUS = 20
+        #circle 30
+        #circle 30, 40
+        #line 10, 10, 400, 400 with COLOR = (0, 192, 0)
+        #line 10, 10, 400, 10 with COLOR = (0, 0, 255)
+        #line 10, 10, 10, 400 with COLOR = (250, 0, 0)
         #save "out.png"
-        save #default is temp.png
+        #save #default is out.png
         
         #circle 30, 40 with COLOR = (20, 30, 40)
         
