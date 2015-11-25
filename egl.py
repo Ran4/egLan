@@ -46,10 +46,12 @@ class EglParser(object):
     
     def getValue(self, key, useWith=False):
         if key in self.w and useWith:
-            #print "\t\tgetValue: self.w[%s] = %s" % (key, self.w[key])
+            if self.w["VERBOSE"] == 2 or self.d["VERBOSE"] == 2:
+                print "\t\tgetValue: self.w[%s] = %s" % (key, self.w[key])
             return self.w[key]
         elif key in self.d:
-            #print "\t\tgetValue: self.d[%s] = %s" % (key, self.d[key])
+            if self.d["VERBOSE"] == 2:
+                print "\t\tgetValue: self.d[%s] = %s" % (key, self.d[key])
             return self.d[key]
         else:
             if useWith:
@@ -112,6 +114,34 @@ class EglParser(object):
         finalValue = eval(arg)
         #print "finalValue:", finalValue
         return finalValue
+    
+    def getImage(self):
+        if self.im:
+            return self.im
+        else:
+            w = self.getValue("W")
+            h = self.getValue("H")
+            bg_col = self.getValue("BG")
+            if w is not None and h is not None:
+                self.im = Image.new("RGB", (w, h), color=bg_col)
+            else:
+                self.printError(
+                        "Lacking variables W and H, can't create image!")
+    
+        return self.im
+    
+    def getDraw(self):
+        if self.draw:
+            return self.draw
+        else:
+            im = self.getImage()
+            if im:
+                self.draw = ImageDraw.Draw(im)
+                if self.draw:
+                    return self.draw
+            
+        self.printError("Problem getting ImageDraw.Draw function!")
+        return None
         
     def printSuccess(self, s, useWith=False):
         verbose = self.getValue("VERBOSE", useWith)
@@ -167,12 +197,14 @@ class EglParser(object):
                 #print "COMMENT"
                 continue
             
-            
-            if self.getValue("VERBOSE") and not line.endswith(";"):
+            if self.getValue("VERBOSE") and not line.startswith("silent"):
                 print "%s%s: %s" % ("    "*self.stat["indent"], iteration, line),
                 
-            while line.endswith(";"):
-                line = line[:-1]
+            if line.startswith("silent"):
+                #print "line starts with silent"
+                line = line[len("silent"):].strip()
+                self.w["VERBOSE"] = False
+                useWith = True
             
             if "#" in line:
                 line = line[:line.find("#")]
@@ -183,7 +215,6 @@ class EglParser(object):
                 line, withArgs = line.split("with", 1)
 
                 if withArgs:
-                    self.w = {"_ID":"w"}
                     self.stat["indent"] += 1
                     print
                     self.run(withArgs.split(" and "), self.w)
@@ -340,34 +371,6 @@ class EglParser(object):
                     (x1, y1, x2, y2, col), useWith)
             draw = self.getDraw()
             draw.line((x1, y1, x2, y2), fill=col)
-        
-    def getImage(self):
-        if self.im:
-            return self.im
-        else:
-            w = self.getValue("W")
-            h = self.getValue("H")
-            bg_col = self.getValue("BG")
-            if w is not None and h is not None:
-                self.im = Image.new("RGB", (w, h), color=bg_col)
-            else:
-                self.printError(
-                        "Lacking variables W and H, can't create image!")
-    
-        return self.im
-    
-    def getDraw(self):
-        if self.draw:
-            return self.draw
-        else:
-            im = self.getImage()
-            if im:
-                self.draw = ImageDraw.Draw(im)
-                if self.draw:
-                    return self.draw
-            
-        self.printError("Problem getting ImageDraw.Draw function!")
-        return None
     
 def runUnitTests():
     import unittesting
