@@ -46,11 +46,12 @@ class EglParser(object):
     
     def getValue(self, key, useWith=False):
         if key in self.w and useWith:
-            if self.w["VERBOSE"] == 2 or self.d["VERBOSE"] == 2:
+            if ("VERBOSE" in self.w and self.w["VERBOSE"] == 2) or \
+                    ("VERBOSE" in self.d and self.d["VERBOSE"] == 2):
                 print "\t\tgetValue: self.w[%s] = %s" % (key, self.w[key])
             return self.w[key]
         elif key in self.d:
-            if self.d["VERBOSE"] == 2:
+            if ("VERBOSE" in self.d and self.d["VERBOSE"] == 2):
                 print "\t\tgetValue: self.d[%s] = %s" % (key, self.d[key])
             return self.d[key]
         else:
@@ -173,7 +174,7 @@ class EglParser(object):
     """
     def run(self, lines, dictionary=None):
         if type(lines) == str:
-            lines = [lines.split("\n")]
+            lines = lines.split("\n")
         
         if dictionary is None:
             dictionary = self.d
@@ -377,10 +378,15 @@ def runUnitTests():
     unittesting.run()
 
 if __name__ == "__main__":
+    interactiveMode = False
+    lines = None
    
     #TODO: add proper argument parsing
     if len(sys.argv) >= 2:
-        lines = open(sys.argv[1]).read().split("\n")
+        if sys.argv[1] == "-i":
+            interactiveMode = True
+        else:
+            lines = open(sys.argv[1]).read().split("\n")
     else:
         runUnitTests()
         
@@ -415,4 +421,12 @@ if __name__ == "__main__":
         """.strip().split("\n")
     
     eglParser = EglParser()
-    eglParser.run(lines)
+    if lines:
+        eglParser.run(lines)
+    
+    if interactiveMode:
+        while True:
+            newLine = raw_input(">> ")
+            if newLine.lower() in ["q", "quit", "exit", ":q"]:
+                break
+            eglParser.run(newLine)
