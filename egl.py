@@ -1,9 +1,14 @@
 import sys
-from termcolor import colored
 import math
 
 from PIL import Image
 from PIL import ImageDraw
+
+try:
+    from termcolor import colored
+except: #Couldn't load termcolor, use a regular function instead
+    def colored(*args):
+        return args[0]
 
 class EglParser(object):
     def __init__(self):
@@ -16,6 +21,7 @@ class EglParser(object):
                 }
         self.d = {
             "_ID": "d",
+            "NODRAW": False,
             "BLACK":(0,0,0),
             "RED":(255,0,0),
             "GREEN":(0,255,0),
@@ -114,7 +120,12 @@ class EglParser(object):
     def stripSeq(self, seq):
         return [x.strip() for x in seq if x.strip()]
     
+    """Takes a list of strings lines and runs them as egLan script
+    """
     def run(self, lines, dictionary=None):
+        if type(lines) == str:
+            lines = [lines.split("\n")]
+        
         if dictionary is None:
             dictionary = self.d
             
@@ -171,8 +182,12 @@ class EglParser(object):
             elif line.startswith("line "):
                 args = self.stripSeq(line[len("line"):].split(","))
                 self.handleLine(args, useWith)
-            elif line.startswith("hline "):
-                self.printNotImplemented("hline")
+            elif line.startswith("hline"):
+                args = self.stripSeq(line[len("hline"):].split(","))
+                self.handleVHLine(args, useWith, "h")
+            elif line.startswith("vline"):
+                args = self.stripSeq(line[len("vline"):].split(","))
+                self.handleVHLine(args, useWith, "v")
             elif line.startswith("circle"):
                 args = self.stripSeq(line[len("circle"):].split(","))
                 self.handleCircle(args, useWith)
@@ -249,6 +264,39 @@ class EglParser(object):
             draw = self.getDraw()
             draw.ellipse((x-r/2, y-r/2, x+r/2, y+r/2), fill=col)
             #ellipse(self, xy, fill=None, outline=None)
+            
+    def handleVHLine(self, args, useWith, vh):
+        if vh.lower() != "v" and vh.lower() != "h":
+            self.printError("Can't handle line '%s'" % vh)
+            return
+        
+        vh = vh.lower()
+        
+        gv = self.getValue
+        gaoe = self.getArgOrEval
+        if vh == "v": #vertical line, only use X value
+            x = gaoe(args[0], useWith) if len(args) > 0 else gv("X", useWith)
+            col = gaoe(args[1], useWith) if len(args) > 1 else gv("COLOR", useWith)
+            if x is None: self.printError("no x given")
+            elif col is None: self.printError("no color given")
+            else:
+                self.printSuccess("VLINE(x=%s)" % x)
+                im = self.getImage()
+                draw = self.getDraw()
+                draw.line((x, im.size[1], x, im.size[1]), fill=col)
+                return True
+ 
+        else: #vh == "h"
+            y = gaoe(args[0], useWith) if len(args) > 0 else gv("Y", useWith)
+            col = gaoe(args[1], useWith) if len(args) > 1 else gv("COLOR", useWith)
+            if y is None: self.printError("no y given")
+            elif col is None: self.printError("no color given")
+            else:
+                self.printSuccess("HLINE(y=%s)" % y)
+                im = self.getImage()
+                draw = self.getDraw()
+                draw.line((0, y, im.size[0], y), fill=col)
+                return True
         
     def handleLine(self, args, useWith):
         gv = self.getValue
@@ -297,57 +345,25 @@ class EglParser(object):
             
         self.printError("Problem getting ImageDraw.Draw function!")
         return None
-                            
-def testGetArgOrEval():
-    eglParser = EglParser()
-    assert(eglParser.getArgOrEval("2") == 2)
-    eglParser = EglParser()
-    assert(eglParser.getArgOrEval("") == None)
-    eglParser = EglParser()
-    assert(eglParser.getArgOrEval("23") == 23)
-    eglParser = EglParser()
-    assert(eglParser.getArgOrEval("1 + 2") == 3)
-    eglParser = EglParser()
-    assert(eglParser.getArgOrEval("1 + 2 + 3") == 6)
     
-    eglParser = EglParser()
-    eglParser.run(["W = 300"])
-    assert(eglParser.getArgOrEval("W") == 300)
-    
-    eglParser = EglParser()
-    eglParser.run(["W = 300"])
-    assert(eglParser.getArgOrEval("W+W") == 600)
-    
-    eglParser = EglParser()
-    eglParser.run(["W = 300", "H = 200"])
-    assert(eglParser.getArgOrEval("W+H") == 500)
-    
-    eglParser = EglParser()
-    eglParser.run(["ABC = 300", "DEF = 200"])
-    assert(eglParser.getArgOrEval("ABC+DEF") == 500)
-    
-    eglParser = EglParser()
-    eglParser.run(["ABC = 50"])
-    assert(eglParser.getArgOrEval("2*ABC") == 100)
-    
-    eglParser = EglParser()
-    eglParser.run(["ABC = 50"])
-    assert(eglParser.getArgOrEval("ABC") == 50)
-    
-    eglParser = EglParser()
-    eglParser.run(["ABC = 1.0"])
-    assert(abs(eglParser.getArgOrEval("ABC*math.pi") - math.pi) < 0.001)
-    
-    print colored("Successfully tested everything!", "green")
+def runUnitTests():
+    import unittesting
+    unittesting.run()
 
 if __name__ == "__main__":
    
+    #TODO: add proper argument parsing
     if len(sys.argv) >= 2:
         lines = open(sys.argv[1]).read().split("\n")
     else:
-        testGetArgOrEval()
+        runUnitTests()
         
         lines = """
+        hline 200
+        hline
+        vline with Y = 800
+        Y = 300
+        hline
         #echo W, H, FILENAME, LOL with LOL = 3
         
         #RADIUS = 20
