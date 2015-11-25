@@ -5,6 +5,7 @@
 #line self.d["W"] // 2, 0, 1920 // 8, 1080
 #line W // 2, 0, 1920 // 8, 1080
 
+VERBOSE = False;
 hline 100
 
 save

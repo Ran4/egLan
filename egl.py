@@ -1,5 +1,6 @@
 import sys
 import math
+import time
 
 from PIL import Image
 from PIL import ImageDraw
@@ -22,6 +23,8 @@ class EglParser(object):
         self.d = {
             "_ID": "d",
             "NODRAW": False,
+            "VERBOSE": True,
+            "HIDEWARNINGS": False,
             "BLACK":(0,0,0),
             "RED":(255,0,0),
             "GREEN":(0,255,0),
@@ -57,7 +60,8 @@ class EglParser(object):
         
     def getArgOrEval(self, arg, useWith=False):
         #"W//2" -> "800//2" -> 400
-        #print "in getArgsOrEval, arg='%s'" % arg
+        if self.getValue("VERBOSE", useWith) == 2:
+            print "in getArgsOrEval, arg='%s'" % arg
         
         variableName = ""
         i = 0
@@ -67,15 +71,14 @@ class EglParser(object):
             if arg[i] in "ABCDEFGHIJKLMNOPQRSTUVWYZ_" or \
                     len(variableName) > 0 and arg[i] in "0123456789":
                 variableName += arg[i]
-                #print "variableName=<%s>" % (variableName)
+                if self.getValue("VERBOSE", useWith) == 2:
+                    print "variableName=<%s>" % (variableName)
             else:
                 if variableName:
                     startReplaceWord = True
                 
             if variableName and (startReplaceWord or i == (len(arg) - 1)):
                 startReplaceWord = False
-                
-                #print "trying to look up '%s'" % variableName
                 
                 if variableName in self.w and useWith:
                     replacedVal = str(self.w[variableName])
@@ -85,11 +88,21 @@ class EglParser(object):
                     print "Couldnt' find %s in dictionary!" % variableName
                     replacedVal = variableName
                 
-                #print "arg before: '%s'" % arg
+                if self.getValue("VERBOSE", useWith) == 2:
+                    print "arg before: '%s'" % arg
                 arg = arg.replace(variableName, replacedVal)
                 i = -1
-                #print "arg after:  '%s'" % arg
+                if self.getValue("VERBOSE", useWith) == 2:
+                    print "arg after:  '%s'" % arg
                 variableName = ""
+                
+                try:
+                    print "Trying to evaluate <%s>" % arg
+                    possibleValue = eval(arg)
+                    return possibleValue
+                except:
+                    print "Couldn't evaluate <%s>" % arg
+                
             i += 1
                 
         if not arg:
@@ -100,17 +113,23 @@ class EglParser(object):
         #print "finalValue:", finalValue
         return finalValue
         
-    def printSuccess(self, s):
-        print colored(self.getIndentString() + s, "green")
+    def printSuccess(self, s, useWith=False):
+        verbose = self.getValue("VERBOSE", useWith)
+        if verbose:
+            print colored(self.getIndentString() + s, "green")
         
     def printError(self, s):
         print colored("ERROR: " + s, "red")
         
-    def printWarning(self, s):
-        print colored("WARNING: " + s, "blue")
+    def printWarning(self, s, useWith=False):
+        hideWarnings = self.getValue("HIDEWARNINGS", useWith)
+        if not hideWarnings:
+            print colored("WARNING: " + s, "blue")
         
-    def printValueSet(self, s):
-        print colored(self.getIndentString() + s, "magenta")
+    def printValueSet(self, s, useWith=False):
+        verbose = self.getValue("VERBOSE", useWith)
+        if verbose:
+            print colored(self.getIndentString() + s, "magenta")
         #red, green, yellow, blue, magenta, cyan, white.
         
     def printNotImplemented(self, s):
@@ -149,7 +168,11 @@ class EglParser(object):
                 continue
             
             
-            print "%s%s: %s" % ("    "*self.stat["indent"], iteration, line),
+            if self.getValue("VERBOSE") and not line.endswith(";"):
+                print "%s%s: %s" % ("    "*self.stat["indent"], iteration, line),
+                
+            while line.endswith(";"):
+                line = line[:-1]
             
             if "#" in line:
                 line = line[:line.find("#")]
@@ -206,7 +229,7 @@ class EglParser(object):
             val = gv(arg, useWith)
             valuesToShow.append("%s == %s" % (arg, val))
         
-        self.printValueSet(", ".join(valuesToShow))
+        self.printValueSet(", ".join(valuesToShow), useWith)
     
     def handleSave(self, args, useWith):
         gv = self.getValue
@@ -217,7 +240,7 @@ class EglParser(object):
         
         im = self.getImage()
         if im:
-            self.printSuccess("im.save(%s)" % repr(fileName))
+            self.printSuccess("im.save(%s)" % repr(fileName), useWith)
             im.save(fileName)
             
     def handleShow(self, args):
@@ -260,7 +283,7 @@ class EglParser(object):
         elif col is None: self.printError("no col given")
         else:
             self.printSuccess(
-            "CIRCLE(x=%s, y=%s, r=%s, col=%s)" % (x, y, r, col))
+            "CIRCLE(x=%s, y=%s, r=%s, col=%s)" % (x, y, r, col), useWith)
             draw = self.getDraw()
             draw.ellipse((x-r/2, y-r/2, x+r/2, y+r/2), fill=col)
             #ellipse(self, xy, fill=None, outline=None)
@@ -280,7 +303,7 @@ class EglParser(object):
             if x is None: self.printError("no x given")
             elif col is None: self.printError("no color given")
             else:
-                self.printSuccess("VLINE(x=%s)" % x)
+                self.printSuccess("VLINE(x=%s)" % x, useWith)
                 im = self.getImage()
                 draw = self.getDraw()
                 draw.line((x, im.size[1], x, im.size[1]), fill=col)
@@ -292,7 +315,7 @@ class EglParser(object):
             if y is None: self.printError("no y given")
             elif col is None: self.printError("no color given")
             else:
-                self.printSuccess("HLINE(y=%s)" % y)
+                self.printSuccess("HLINE(y=%s)" % y, useWith)
                 im = self.getImage()
                 draw = self.getDraw()
                 draw.line((0, y, im.size[0], y), fill=col)
@@ -314,7 +337,7 @@ class EglParser(object):
         elif col is None: self.printError("no col given")
         else:
             self.printSuccess("LINE(x1=%s, y1=%s, x2=%s, y2=%s, col=%s)" % \
-                    (x1, y1, x2, y2, col))
+                    (x1, y1, x2, y2, col), useWith)
             draw = self.getDraw()
             draw.line((x1, y1, x2, y2), fill=col)
         
