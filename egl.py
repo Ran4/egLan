@@ -64,7 +64,7 @@ class EglParser(object):
     def getArgOrEval(self, arg, useWith=False):
         #"W//2" -> "800//2" -> 400
         if self.getValue("VERBOSE", useWith) == 2:
-            print "in getArgsOrEval, arg='%s'" % arg
+            print "in getArgOrEval, arg='%s'" % arg
         
         variableName = ""
         i = 0
@@ -288,7 +288,8 @@ class EglParser(object):
             #print colored("Error parsing line '%s'" % line, "red")
             self.printError("Can't parse line '%s'" % line)
         elif len(a) == 2:
-            d[a[0]] = newVal = eval(a[1])
+            #d[a[0]] = newVal = eval(a[1])
+            d[a[0]] = newVal = self.getArgOrEval(a[1])
             newValTypeStr = str(type(newVal))
             
             self.printValueSet("%s = %s%s %s" % \
@@ -304,10 +305,17 @@ class EglParser(object):
         
     def handleCircle(self, args, useWith):
         gv = self.getValue
-        x = eval(args[0]) if len(args) > 0 else gv("X", useWith)
-        y = eval(args[1]) if len(args) > 1 else gv("Y", useWith)
-        r = eval(args[2]) if len(args) > 2 else gv("RADIUS", useWith)
-        col = args[2] if len(args) > 2 else gv("COLOR", useWith)
+        gaoe = self.getArgOrEval
+        #x = eval(args[0]) if len(args) > 0 else gv("X", useWith)
+        #y = eval(args[1]) if len(args) > 1 else gv("Y", useWith)
+        #r = eval(args[2]) if len(args) > 2 else gv("RADIUS", useWith)
+        #col = eval(args[3]) if len(args) > 3 else gv("COLOR", useWith)
+        x = gaoe(args[0]) if len(args) > 0 else gv("X", useWith)
+        y = gaoe(args[1]) if len(args) > 1 else gv("Y", useWith)
+        r = gaoe(args[2]) if len(args) > 2 else gv("RADIUS", useWith)
+        #col = gaoe(args[3]) if len(args) > 3 else gv("COLOR", useWith)
+        #TODO: make this use gaoe (fix (255,0,0) => [255,0,0]
+        col = gaoe(args[3]) if len(args) > 3 else gv("COLOR", useWith)
         
         if x is None: self.printError("no x given")
         elif y is None: self.printError("no y given")
