@@ -1,7 +1,22 @@
-W = 1920//2
-H = 1080//2
+help
+interactive
+#quit
+
+W = 1920
+H = 1080
+HW = W // 2
+HH = H // 2
 #hline H//2
-vline W//2
+RED = (255, 0, 0)
+vline HW
+#line HW, HH, W, HH
+line HW, H - H/4, W, H - H/4
+line HW, H/4, W, H/4
+
+vline W/4
+
+#line 0, H/3, W/4, H/3
+line 0, 2*H/3, W/4, 2*H/3
 
 #echo W, H
 #line 1920 // 8, 0, 1920 // 8, 1080

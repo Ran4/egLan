@@ -13,6 +13,7 @@ except: #Couldn't load termcolor, use a regular function instead
 
 class EglParser(object):
     def __init__(self):
+        self.interactiveMode = False
         self.im = None
         self.draw = None
         self.setupDict()
@@ -101,7 +102,7 @@ class EglParser(object):
                 variableName = ""
                 
                 try:
-                    print "Trying to evaluate <%s>" % arg
+                    #print "Trying to evaluate <%s>" % arg
                     possibleValue = eval(arg)
                     return possibleValue
                 except:
@@ -201,7 +202,9 @@ class EglParser(object):
                 #print "COMMENT"
                 continue
             
-            if self.getValue("VERBOSE") and not line.startswith("silent"):
+            if self.getValue("VERBOSE") \
+                    and not line.startswith("silent") \
+                    and not self.interactiveMode:
                 print "%s%s: %s" % ("    "*self.stat["indent"], iteration, line),
                 
             if line.startswith("silent"):
@@ -228,6 +231,12 @@ class EglParser(object):
             #regular handling
             if line == "clear":
                 self.clear()
+            elif line.startswith("quit") or line.startswith("exit") or \
+                    line == ":q":
+                self.handleQuit()
+            elif line.startswith("help"):
+                args = self.stripSeq(line[len("help"):].split(","))
+                self.handleHelp(args, useWith)
             elif line.startswith("echo"):
                 args = self.stripSeq(line[len("echo"):].split(","))
                 self.handleEcho(args, useWith)
@@ -237,7 +246,7 @@ class EglParser(object):
             elif line.startswith("show"):
                 args = self.stripSeq(line[len("show"):].split(","))
                 self.handleShow(args)
-            elif line.startswith("line "):
+            elif line.startswith("line"):
                 args = self.stripSeq(line[len("line"):].split(","))
                 self.handleLine(args, useWith)
             elif line.startswith("hline"):
@@ -256,8 +265,48 @@ class EglParser(object):
                 print colored("%sUNKNOWN COMMAND '%s'" % \
                         (self.getIndentString(), line), "yellow")
     #}}}
-   #{{{ Handle functions
+    #{{{ Handle functions
+    def handleHelp(self, args, useWith):
+        """USER FUNCTION
+        help [function]
+        Shows help"""
+        gv = self.getValue
+        
+        if not args:
+            print "\nEasy Graphics Language (egLan): a simple graphics scripting language"
+            print "functions:"
+            
+            for name in dir(self):
+                if name.startswith("_"):
+                    continue
+                
+                attr = getattr(self, name)
+                if attr and type(attr) == type(self.__init__) and attr.__doc__:
+                    if attr.__doc__.startswith("USER FUNCTION"):
+                        print attr.__doc__[len("USER_FUNCTION"):].strip()
+            
+        else:
+            for arg in args:
+                pass
+        
+        #valuesToShow = []
+        #for arg in args:
+        #    val = gv(arg, useWith)
+        #    valuesToShow.append("%s == %s" % (arg, val))
+        
+        #self.printValueSet(", ".join(valuesToShow), useWith)
+        
+    def handleQuit(self):
+        """USER FUNCTION
+        quit\nexit\n:q
+        Quits, discarding unsaved changes"""
+        print "\nQuitting..."
+        exit(1) #TODO: this should be exit(0)
+        
     def handleEcho(self, args, useWith):
+        """USER FUNCTION
+        echo variablename
+        Prints the value of a variable"""
         gv = self.getValue
         
         valuesToShow = []
@@ -268,6 +317,9 @@ class EglParser(object):
         self.printValueSet(", ".join(valuesToShow), useWith)
     
     def handleSave(self, args, useWith):
+        """USER FUNCTION
+        save [FILENAME]
+        Saves image to file with name filename (default: FILENAME variable)"""
         gv = self.getValue
         fileName = eval(args[0]) if len(args) > 0 else gv("FILENAME", useWith)
         
@@ -280,6 +332,9 @@ class EglParser(object):
             im.save(fileName)
             
     def handleShow(self, args):
+        """USER FUNCTION
+        show
+        Shows current image (without writing it to disk)"""
         im = self.getImage()
         if im:
             self.printSuccess("im.show()")
@@ -308,6 +363,9 @@ class EglParser(object):
                     d[a[i-1]] = eval(d[a[i]])
         
     def handleCircle(self, args, useWith):
+        """USER FUNCTION
+        circle [X, Y, [RADIUS, [COLOR]]]]
+        Draws a circle with radius RADIUS and color COLOR to position X, Y"""
         gv = self.getValue
         gaoe = self.getArgOrEval
         #x = eval(args[0]) if len(args) > 0 else gv("X", useWith)
@@ -333,6 +391,9 @@ class EglParser(object):
             #ellipse(self, xy, fill=None, outline=None)
             
     def handleVHLine(self, args, useWith, vh):
+        """USER FUNCTION
+        hline [Y, [COLOR]]\nvline [X, [COLOR]]
+        Draws a horizontal or vertical line with color COLOR with position X/Y"""
         if vh.lower() != "v" and vh.lower() != "h":
             self.printError("Can't handle line '%s'" % vh)
             return
@@ -366,6 +427,9 @@ class EglParser(object):
                 return True
         
     def handleLine(self, args, useWith):
+        """USER FUNCTION
+        line [X, Y, [X2, Y2, [COLOR]]]
+        Draws a line from (X,Y) to (X2,Y2) with color COLOR"""
         gv = self.getValue
         gaoe = self.getArgOrEval
         x1 = gaoe(args[0], useWith) if len(args) > 0 else gv("X", useWith)
@@ -391,13 +455,13 @@ def runUnitTests():
     unittesting.run()
 
 if __name__ == "__main__":
-    interactiveMode = False
+    setInteractiveMode = False
     lines = None
    
     #TODO: add proper argument parsing
     if len(sys.argv) >= 2:
         if sys.argv[1] == "-i":
-            interactiveMode = True
+            setInteractiveMode = True
         else:
             lines = open(sys.argv[1]).read().split("\n")
     else:
@@ -434,13 +498,15 @@ if __name__ == "__main__":
         """.strip().split("\n")
     
     eglParser = EglParser()
+    if setInteractiveMode:
+        eglParser.interactiveMode = True
+        
     if lines:
         eglParser.run(lines)
     
-    if interactiveMode:
-        while True:
-            newLine = raw_input(">> ")
-            if newLine.lower() in ["q", "quit", "exit", ":q"]:
-                break
-            eglParser.run(newLine)
+    while eglParser.interactiveMode:
+        newLine = raw_input(">> ")
+        #if newLine.lower() in ["q", "quit", "exit", ":q"]:
+        #    break
+        eglParser.run(newLine)
 #}}}
