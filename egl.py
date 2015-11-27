@@ -346,7 +346,7 @@ class EglParser(object):
                 self.printSuccess("VLINE(x=%s)" % x, useWith)
                 im = self.getImage()
                 draw = self.getDraw()
-                draw.line((x, im.size[1], x, im.size[1]), fill=col)
+                draw.line((x, 0, x, im.size[1]), fill=col)
                 return True
  
         else: #vh == "h"

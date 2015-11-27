@@ -1,11 +1,16 @@
-#W = 1920 // 4
-#H = 1080 // 4
+W = 1920
+H = 1080
+#hline H//2
+vline W//2
+
 #echo W, H
 #line 1920 // 8, 0, 1920 // 8, 1080
 #line self.d["W"] // 2, 0, 1920 // 8, 1080
 #line W // 2, 0, 1920 // 8, 1080
 
 #silent VERBOSE = False
-silent VERBOSE = False
-hline 100
-save
+#VERBOSE = False
+#RED = (255, 0, 0)
+#silent VERBOSE = False
+#circle H/2, W/2, 16, RED
+save "vlinetest.png"
