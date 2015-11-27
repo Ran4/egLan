@@ -1,4 +1,4 @@
-import sys
+import sys #{{{ Import stuff, class definition
 import math
 import time
 
@@ -39,7 +39,8 @@ class EglParser(object):
         self.stat = {
             "indent": 0,
         }
-    
+    #}}}
+    #{{{ get functions
     def getIndentString(self):
         return  "    " * (self.stat["indent"]+0) + \
                 "-> "
@@ -143,7 +144,8 @@ class EglParser(object):
             
         self.printError("Problem getting ImageDraw.Draw function!")
         return None
-        
+   #}}}
+   #{{{ Print functions
     def printSuccess(self, s, useWith=False):
         verbose = self.getValue("VERBOSE", useWith)
         if verbose:
@@ -166,7 +168,8 @@ class EglParser(object):
     def printNotImplemented(self, s):
         print colored("%sNOT IMPLEMENTED (%s)" % \
                 (self.getIndentString(), s), "cyan")
-    
+   #}}}
+   #{{{ Run
     def stripSeq(self, seq):
         return [x.strip() for x in seq if x.strip()]
     
@@ -252,7 +255,8 @@ class EglParser(object):
             else:
                 print colored("%sUNKNOWN COMMAND '%s'" % \
                         (self.getIndentString(), line), "yellow")
-                
+    #}}}
+   #{{{ Handle functions
     def handleEcho(self, args, useWith):
         gv = self.getValue
         
@@ -293,7 +297,7 @@ class EglParser(object):
             newValTypeStr = str(type(newVal))
             
             self.printValueSet("%s = %s%s %s" % \
-                    (a[0], a[1], "" if a[0] in d.keys() else " (NEW)",
+                    (a[0], newVal, "" if a[0] in d.keys() else " (NEW)",
                     newValTypeStr + d["_ID"]))
         elif len(a) > 2:
             #a = b = c => b = c, a = b
@@ -380,7 +384,8 @@ class EglParser(object):
                     (x1, y1, x2, y2, col), useWith)
             draw = self.getDraw()
             draw.line((x1, y1, x2, y2), fill=col)
-    
+#}}}
+#{{{ Start stuff
 def runUnitTests():
     import unittesting
     unittesting.run()
@@ -438,3 +443,4 @@ if __name__ == "__main__":
             if newLine.lower() in ["q", "quit", "exit", ":q"]:
                 break
             eglParser.run(newLine)
+#}}}
