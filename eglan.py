@@ -1,4 +1,4 @@
-import sys #{{{ Import stuff, class definition
+import sys #{{{ Imports, class definition
 import math
 import time
 
@@ -41,7 +41,7 @@ class EglParser(object):
             "indent": 0,
         }
     #}}}
-    #{{{ get functions
+    #{{{ Get functions
     def getIndentString(self):
         return  "    " * (self.stat["indent"]+0) + \
                 "-> "
@@ -62,6 +62,18 @@ class EglParser(object):
             else:
                 self.printWarning("Can't find value '%s' in dictionary!" % key)
             return None
+        
+    def _tryEval(self, arg):
+        """Tries to evaluate a string argument
+        Returns (True, evaluatedValue) if successfully evaluated,
+        else (False, None) """
+        try:
+            #print "Trying to evaluate <%s>" % arg
+            possibleValue = eval(arg)
+            return (True, possibleValue)
+        except:
+            print "Couldn't evaluate <%s>" % arg
+            return (False, None)
         
     def getArgOrEval(self, arg, useWith=False):
         #"W//2" -> "800//2" -> 400
@@ -101,11 +113,10 @@ class EglParser(object):
                     print "arg after:  '%s'" % arg
                 variableName = ""
                 
-                try:
-                    #print "Trying to evaluate <%s>" % arg
-                    possibleValue = eval(arg)
-                    return possibleValue
-                except:
+                success, value = self._tryEval(arg)
+                if success:
+                    return value
+                else:
                     print "Couldn't evaluate <%s>" % arg
                 
             i += 1
@@ -114,9 +125,8 @@ class EglParser(object):
             self.printError("arg is empty!")
             return None
         
-        finalValue = eval(arg)
-        #print "finalValue:", finalValue
-        return finalValue
+        success, value = self._tryEval(arg)
+        return value
     
     def getImage(self):
         if self.im:
@@ -174,9 +184,13 @@ class EglParser(object):
     def stripSeq(self, seq):
         return [x.strip() for x in seq if x.strip()]
     
-    """Takes a list of strings lines and runs them as egLan script
-    """
+    def stripAndSplitSeq(self, seq, splitChar):
+        #TODO: properly split this, e.g. "1,(2,3)" -> ["1", "(2,3")]
+        return [x.strip() for x in seq.split(splitChar) if x.strip()]
+    
     def run(self, lines, dictionary=None):
+        """Takes a list of strings lines and runs them as egLan script
+        """
         if type(lines) == str:
             lines = lines.split("\n")
         
@@ -235,28 +249,28 @@ class EglParser(object):
                     line == ":q":
                 self.handleQuit()
             elif line.startswith("help"):
-                args = self.stripSeq(line[len("help"):].split(","))
+                args = self.stripAndSplitSeq(line[len("help"):], ",")
                 self.handleHelp(args, useWith)
             elif line.startswith("echo"):
-                args = self.stripSeq(line[len("echo"):].split(","))
+                args = self.stripAndSplitSeq(line[len("echo"):], ",")
                 self.handleEcho(args, useWith)
             elif line.startswith("save"):
-                args = self.stripSeq(line[len("save"):].split(","))
+                args = self.stripAndSplitSeq(line[len("save"):], ",")
                 self.handleSave(args, useWith)
             elif line.startswith("show"):
-                args = self.stripSeq(line[len("show"):].split(","))
+                args = self.stripAndSplitSeq(line[len("show"):], ",")
                 self.handleShow(args)
             elif line.startswith("line"):
-                args = self.stripSeq(line[len("line"):].split(","))
+                args = self.stripAndSplitSeq(line[len("line"):], ",")
                 self.handleLine(args, useWith)
             elif line.startswith("hline"):
-                args = self.stripSeq(line[len("hline"):].split(","))
+                args = self.stripAndSplitSeq(line[len("hline"):], ",")
                 self.handleVHLine(args, useWith, "h")
             elif line.startswith("vline"):
-                args = self.stripSeq(line[len("vline"):].split(","))
+                args = self.stripAndSplitSeq(line[len("vline"):], ",")
                 self.handleVHLine(args, useWith, "v")
             elif line.startswith("circle"):
-                args = self.stripSeq(line[len("circle"):].split(","))
+                args = self.stripAndSplitSeq(line[len("circle"):], ",")
                 self.handleCircle(args, useWith)
                 
             elif line.count("=") > 0:

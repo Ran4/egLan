@@ -1,9 +1,9 @@
-import egl
+import eglan
 
 def testHLine():
-    EglParser = egl.EglParser
+    EglParser = eglan.EglParser
     
-    print egl.colored("Starting unit testing of hline", "yellow")
+    print eglan.colored("Starting unit testing of hline", "yellow")
     
     eglParser = EglParser()
     eglParser.d["NODRAW"] = True
@@ -14,12 +14,12 @@ def testHLine():
     eglParser.run(["hline with y = 30"])
     eglParser.run(["hline with Y = 30"])
     
-    print egl.colored("Successfully tested hline", "green")
+    print eglan.colored("Successfully tested hline", "green")
 
 def testGetArgOrEval():
-    EglParser = egl.EglParser
+    EglParser = eglan.EglParser
     
-    print egl.colored("Starting unit testing of getArgOrEval", "yellow")
+    print eglan.colored("Starting unit testing of getArgOrEval", "yellow")
     
     eglParser = EglParser()
     assert(eglParser.getArgOrEval("2") == 2)
@@ -62,7 +62,7 @@ def testGetArgOrEval():
     eglParser.run(["ABC = 1.0"])
     assert(abs(eglParser.getArgOrEval("ABC*math.pi") - math.pi) < 0.001)
     
-    print egl.colored("Successfully tested getArgOrEval!", "green")
+    print eglan.colored("Successfully tested getArgOrEval!", "green")
     
 def run():
     testGetArgOrEval()
