@@ -5,6 +5,8 @@ import time
 from PIL import Image
 from PIL import ImageDraw
 
+import parsing
+
 try:
     from termcolor import colored
 except: #Couldn't load termcolor, use a regular function instead
@@ -165,6 +167,10 @@ class EglParser(object):
     def printError(self, s):
         print colored("ERROR: " + s, "red")
         
+    @staticmethod
+    def _staticPrintError(s):
+        print colored("ERROR: " + s, "red")
+        
     def printWarning(self, s, useWith=False):
         hideWarnings = self.getValue("HIDEWARNINGS", useWith)
         if not hideWarnings:
@@ -176,6 +182,7 @@ class EglParser(object):
             print colored(self.getIndentString() + s, "magenta")
         #red, green, yellow, blue, magenta, cyan, white.
         
+    @staticmethod
     def printNotImplemented(self, s):
         print colored("%sNOT IMPLEMENTED (%s)" % \
                 (self.getIndentString(), s), "cyan")
@@ -185,8 +192,10 @@ class EglParser(object):
         return [x.strip() for x in seq if x.strip()]
     
     def stripAndSplitSeq(self, seq, splitChar):
+        return [x.strip() for x in parsing.split(seq, splitChar) if x.strip()]
+        
         #TODO: properly split this, e.g. "1,(2,3)" -> ["1", "(2,3")]
-        return [x.strip() for x in seq.split(splitChar) if x.strip()]
+        #return [x.strip() for x in seq.split(splitChar) if x.strip()]
     
     def run(self, lines, dictionary=None):
         """Takes a list of strings lines and runs them as egLan script
@@ -284,9 +293,16 @@ class EglParser(object):
         """USER FUNCTION
         help [function]
         Shows help"""
+        def getHelpStringFromName(name):
+            attr = getattr(self, name)
+            if attr and type(attr) == type(self.__init__) and attr.__doc__:
+                if attr.__doc__.startswith("USER FUNCTION"):
+                    return attr.__doc__[len("USER_FUNCTION"):].strip()
+            return None
+        
         gv = self.getValue
         
-        if not args:
+        if not args: #no argument given show default help
             print "\nEasy Graphics Language (egLan): a simple graphics scripting language"
             print "functions:"
             
@@ -294,14 +310,38 @@ class EglParser(object):
                 if name.startswith("_"):
                     continue
                 
-                attr = getattr(self, name)
+                nameString = getHelpStringFromName(name)
+                if nameString:
+                    print nameString
+                
+                """attr = getattr(self, name)
                 if attr and type(attr) == type(self.__init__) and attr.__doc__:
                     if attr.__doc__.startswith("USER FUNCTION"):
                         print attr.__doc__[len("USER_FUNCTION"):].strip()
+                """
             
-        else:
+        else: #one or more arguments given, show help about those functions
             for arg in args:
-                pass
+                larg = arg.lower()
+                if larg == "circle":
+                    functionName = "handleCircle"
+                elif larg == "echo":
+                    functionName = "handleEcho"
+                elif larg == "help":
+                    functionName = "handleHelp"
+                elif larg == "line":
+                    functionName = "handleLine"
+                elif larg == "hline" or larg == "vline":
+                    functionName = "handleVHLine"
+                elif larg == "show":
+                    functionName = "handleShow"
+                else:
+                    print "Couldn't find help for '%s'" % arg
+                    continue
+                
+                nameString = getHelpStringFromName(functionName)
+                if nameString:
+                    print nameString
         
         #valuesToShow = []
         #for arg in args:

@@ -1,4 +1,5 @@
 import eglan
+import parsing
 
 def testHLine():
     EglParser = eglan.EglParser
@@ -67,6 +68,8 @@ def testGetArgOrEval():
 def run():
     testGetArgOrEval()
     testHLine()
+    parsing.testSplit()
+    
    
 if __name__ == "__main__":
     run()
