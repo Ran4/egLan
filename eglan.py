@@ -1,6 +1,7 @@
 import sys #{{{ Imports, class definition
 import math
 import time
+import os
 
 from PIL import Image
 from PIL import ImageDraw
@@ -182,7 +183,7 @@ class EglParser(object):
             print colored(self.getIndentString() + s, "magenta")
         #red, green, yellow, blue, magenta, cyan, white.
         
-    @staticmethod
+    #@staticmethod
     def printNotImplemented(self, s):
         print colored("%sNOT IMPLEMENTED (%s)" % \
                 (self.getIndentString(), s), "cyan")
@@ -252,8 +253,11 @@ class EglParser(object):
                     useWith = True
             
             #regular handling
-            if line == "clear":
-                self.clear()
+            if line == "cls":
+                self.handleClearScreen()
+            elif line == "clear":
+                self.printNotImplemented("clear")
+                #self.handleClear()
             elif line.startswith("quit") or line.startswith("exit") or \
                     line == ":q":
                 self.handleQuit()
@@ -289,6 +293,14 @@ class EglParser(object):
                         (self.getIndentString(), line), "yellow")
     #}}}
     #{{{ Handle functions
+    def handleClearScreen(self, args=None, useWith=None):
+        """USER FUNCTION
+        cls
+        Clears the screen
+        """
+        #TODO: Make this work in both UNIX and Windows
+        os.system("clear")
+    
     def handleHelp(self, args, useWith):
         """USER FUNCTION
         help [function]
@@ -325,6 +337,8 @@ class EglParser(object):
                 larg = arg.lower()
                 if larg == "circle":
                     functionName = "handleCircle"
+                elif larg == "cls":
+                    functionName = "handleClearScreen"
                 elif larg == "echo":
                     functionName = "handleEcho"
                 elif larg == "help":
