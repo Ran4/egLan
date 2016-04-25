@@ -12,15 +12,18 @@ Easy Graphics Language (egLan): a simple graphics scripting language, built as a
 
 ##Usage:
 
-python eglan.py file.eglan
-python eglan.py -i
+`python eglan.py file.eglan`
+
+`python eglan.py -i`
 
 ###Example:
 
-python eglan.py testcode/test.eglan
+`python eglan.py testcode/test.eglan`
 
 
-##Functions (latest instructions can be found by typing the `help` command in the interpreter):
+##Functions
+
+*(The latest instructions can be found by typing the `help` command in the interpreter)*
 
 circle [X, Y, [RADIUS, [COLOR]]]]
         Draws a circle with radius RADIUS and color COLOR to position X, Y
