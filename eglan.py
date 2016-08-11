@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys #{{{ Imports, class definition
 import math
 import time
@@ -15,13 +16,21 @@ except: #Couldn't load termcolor, use a regular function instead
         return args[0]
 
 class EglParser(object):
-    def __init__(self):
+    def __init__(self, dict_addon=None):
+        """
+        dict_addon: Optional[Dict]. If dict, the self.d dict is updated
+            with additional_dict
+        """
         self.interactiveMode = False
-        self.im = None
-        self.draw = None
-        self.setupDict()
+        self.im = None #PIL image object
+        self.draw = None #PIL draw object
+        self.setupDefaultDicts()
         
-    def setupDict(self):
+        if dict_addon:
+            self.d.update(dict_addon)
+
+        
+    def setupDefaultDicts(self):
         """Setups the .w and .d dictionaries with default values
         """
         #'with' dictionary, populated when using `function with ...`
@@ -33,6 +42,8 @@ class EglParser(object):
             "NODRAW": False,
             "VERBOSE": True,
             "HIDEWARNINGS": False,
+            "HIDEERRORS": False,
+            
             "BLACK":(0,0,0),
             "RED":(255,0,0),
             "GREEN":(0,255,0),
@@ -74,7 +85,7 @@ class EglParser(object):
                 self.printWarning("Can't find value '%s' in dictionary!" % key)
             return None
         
-    def _tryEval(self, arg):
+    def _tryEval(self, arg, extraVerbose=True):
         """Tries to evaluate a string argument
         Returns (True, evaluatedValue) if successfully evaluated,
         else (False, None) """
@@ -83,28 +94,38 @@ class EglParser(object):
             possibleValue = eval(arg)
             return (True, possibleValue)
         except:
-            print "Couldn't evaluate <%s>" % arg
+            if extraVerbose:
+                print "Couldn't evaluate <%s>" % arg
             return (False, None)
         
     def getArgOrEval(self, arg, useWith=False):
         #"W//2" -> "800//2" -> 400
         if self.getValue("VERBOSE", useWith) == 2:
             print "in getArgOrEval, arg='%s'" % arg
+            extraVerbose = True
+        else:
+            extraVerbose = False
         
         variableName = ""
         i = 0
         startReplaceWord = False
         while i < len(arg):
-            #vars starts with ABC.., can contain 0123.. but not at the beginning
+            
+            # First, build up the variableName string (one char at a time)
+            # until we've found a character that's can't be a valid variable
+            # name. Variables starts with any of A-Z, can contain 0-9 but not as
+            # the first character
             if arg[i] in "ABCDEFGHIJKLMNOPQRSTUVWYZ_" or \
                     len(variableName) > 0 and arg[i] in "0123456789":
                 variableName += arg[i]
-                if self.getValue("VERBOSE", useWith) == 2:
+                if extraVerbose:
                     print "variableName=<%s>" % (variableName)
             else:
                 if variableName:
                     startReplaceWord = True
                 
+            # We have a potential variableName, and we've either found a
+            # non-valid char or we're at the end of arg
             if variableName and (startReplaceWord or i == (len(arg) - 1)):
                 startReplaceWord = False
                 
@@ -113,22 +134,23 @@ class EglParser(object):
                 elif variableName in self.d:
                     replacedVal = str(self.d[variableName])
                 else:
-                    print "Couldnt' find %s in dictionary!" % variableName
+                    print "Couldn't find %s in dictionary!" % variableName
                     replacedVal = variableName
                 
-                if self.getValue("VERBOSE", useWith) == 2:
+                if extraVerbose:
                     print "arg before: '%s'" % arg
                 arg = arg.replace(variableName, replacedVal)
                 i = -1
-                if self.getValue("VERBOSE", useWith) == 2:
+                if extraVerbose:
                     print "arg after:  '%s'" % arg
                 variableName = ""
                 
-                success, value = self._tryEval(arg)
+                success, value = self._tryEval(arg, extraVerbose)
                 if success:
                     return value
                 else:
-                    print "Couldn't evaluate <%s>" % arg
+                    if extraVerbose:
+                        print "Couldn't evaluate <%s>" % arg
                 
             i += 1
                 
@@ -136,7 +158,7 @@ class EglParser(object):
             self.printError("arg is empty!")
             return None
         
-        success, value = self._tryEval(arg)
+        success, value = self._tryEval(arg, extraVerbose)
         return value
     
     def getImage(self):
@@ -177,17 +199,19 @@ class EglParser(object):
         if verbose:
             print colored(self.getIndentString() + s, "green")
         
-    def printError(self, s):
-        print colored("ERROR: " + s, "red")
+    def printError(self, string, useWith=False):
+        hideErrors = self.getValue("HIDEERRORS", useWith)
+        if not hideErrors:
+            print colored("ERROR: " + string, "red")
         
     @staticmethod
-    def _staticPrintError(s):
-        print colored("ERROR: " + s, "red")
+    def _staticPrintError(string):
+        print colored("ERROR: " + string, "red")
         
-    def printWarning(self, s, useWith=False):
+    def printWarning(self, string, useWith=False):
         hideWarnings = self.getValue("HIDEWARNINGS", useWith)
         if not hideWarnings:
-            print colored("WARNING: " + s, "blue")
+            print colored("WARNING: " + string, "blue")
         
     def printValueSet(self, s, useWith=False):
         verbose = self.getValue("VERBOSE", useWith)
@@ -210,7 +234,7 @@ class EglParser(object):
         #TODO: properly split this, e.g. "1,(2,3)" -> ["1", "(2,3")]
         #return [x.strip() for x in seq.split(splitChar) if x.strip()]
         
-    def handle_regular_statements(self):
+    def handle_regular_statements(self, line, useWith, dictionary):
         #TODO: make sure this has no dependencies
         if line == "cls":
             self.handleClearScreen()
@@ -308,7 +332,7 @@ class EglParser(object):
             if " with " in line:
                 line, useWith = self.handle_with_statements(line, useWith)
             
-            self.handle_regular_statements()
+            self.handle_regular_statements(line, useWith, dictionary)
     #}}}
     #{{{ Handle functions
     def handleClearScreen(self, args=None, useWith=None):
@@ -477,7 +501,8 @@ class EglParser(object):
     def handleVHLine(self, args, useWith, vh):
         """USER FUNCTION
         hline [Y, [COLOR]]\nvline [X, [COLOR]]
-        Draws a horizontal or vertical line with color COLOR with position X/Y"""
+        Draws a horizontal or vertical line with color COLOR with position X/Y
+        """
         if vh.lower() != "v" and vh.lower() != "h":
             self.printError("Can't handle line '%s'" % vh)
             return
@@ -488,7 +513,8 @@ class EglParser(object):
         gaoe = self.getArgOrEval
         if vh == "v": #vertical line, only use X value
             x = gaoe(args[0], useWith) if len(args) > 0 else gv("X", useWith)
-            col = gaoe(args[1], useWith) if len(args) > 1 else gv("COLOR", useWith)
+            col = gaoe(args[1], useWith) if len(args) > 1 else \
+                gv("COLOR", useWith)
             if x is None: self.printError("no x given")
             elif col is None: self.printError("no color given")
             else:
@@ -534,10 +560,6 @@ class EglParser(object):
             draw.line((x1, y1, x2, y2), fill=col)
 #}}}
 #{{{ Start stuff
-def runUnitTests():
-    import unittesting
-    unittesting.run()
-
 if __name__ == "__main__":
     setInteractiveMode = False
     lines = None
@@ -549,8 +571,6 @@ if __name__ == "__main__":
         else:
             lines = open(sys.argv[1]).read().split("\n")
     else:
-        runUnitTests()
-        
         lines = """
         hline 200
         hline
