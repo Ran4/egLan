@@ -7,8 +7,8 @@ COLOR = #ff0000
 line 0, 0, W, H
 
 text "Hello, world!", (10, 10)
-text "Hello, world!" where POS = (10, 10)
-text "Hello, world!" where POS = (10, 10) and COLOR = GREEN
+text "Hello, world!" with POS = (10, 10)
+text "Hello, world!" with POS = (10, 10) and COLOR = GREEN
 
 #horizontal, vertical lines
 hline 0
@@ -62,6 +62,13 @@ while x + 10 < W:
     circle x, y, 16 #draw's circle with radius 16 to position x, y
     x += 10
     save "ball_" + x//10 + ".gif"
+makegif "ball_moving.gif" with DT = 0.1
+
+#shorter variant, if for loops exist:
+for xi = 10; xi + 10 < W; x += 10
+    clear with SIZE = 500, 500 and BG = LIGHTGREY #clears image
+    circle xi, HH, 16 with COLOR = RED
+    save "ball_" + xi//10 + ".gif"
 makegif "ball_moving.gif" with DT = 0.1
 
 

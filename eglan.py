@@ -22,8 +22,12 @@ class EglParser(object):
         self.setupDict()
         
     def setupDict(self):
+        """Setups the .w and .d dictionaries with default values
+        """
+        #'with' dictionary, populated when using `function with ...`
         self.w = {"_ID":"w"
                 }
+        #Regular dictionary that is used to store values
         self.d = {
             "_ID": "d",
             "NODRAW": False,
@@ -50,6 +54,10 @@ class EglParser(object):
                 "-> "
     
     def getValue(self, key, useWith=False):
+        """Tries to get the value from the self.d dict with the key `key`.
+        If useWith is True, we will first try to get the value from the
+        self.w dict (the 'with' dict)
+        """
         if key in self.w and useWith:
             if ("VERBOSE" in self.w and self.w["VERBOSE"] == 2) or \
                     ("VERBOSE" in self.d and self.d["VERBOSE"] == 2):
@@ -132,21 +140,25 @@ class EglParser(object):
         return value
     
     def getImage(self):
-        if self.im:
-            return self.im
-        else:
-            w = self.getValue("W")
-            h = self.getValue("H")
-            bg_col = self.getValue("BG")
-            if w is not None and h is not None:
-                self.im = Image.new("RGB", (w, h), color=bg_col)
-            else:
-                self.printError(
-                        "Lacking variables W and H, can't create image!")
-    
+        """Returns the image else creates it
+        """
+        if not self.im:
+            self.createDefaultImage()
         return self.im
+        
+        
+    def createDefaultImage(self):
+        w = self.getValue("W")
+        h = self.getValue("H")
+        bg_col = self.getValue("BG")
+        if w is not None and h is not None:
+            self.im = Image.new("RGB", (w, h), color=bg_col)
+        else:
+            self.printError("Lacking variables W and H, can't create image!")
     
     def getDraw(self):
+        """Returns ImageDraw.Draw of self.im, creating it if needed
+        """
         if self.draw:
             return self.draw
         else:
@@ -197,9 +209,64 @@ class EglParser(object):
         
         #TODO: properly split this, e.g. "1,(2,3)" -> ["1", "(2,3")]
         #return [x.strip() for x in seq.split(splitChar) if x.strip()]
+        
+    def handle_regular_statements(self):
+        #TODO: make sure this has no dependencies
+        if line == "cls":
+            self.handleClearScreen()
+        elif line == "clear":
+            self.printNotImplemented("clear")
+            #self.handleClear()
+        elif line.startswith("quit") or line.startswith("exit") or \
+                line == ":q":
+            self.handleQuit()
+        elif line.startswith("help"):
+            args = self.stripAndSplitSeq(line[len("help"):], ",")
+            self.handleHelp(args, useWith)
+        elif line.startswith("echo"):
+            args = self.stripAndSplitSeq(line[len("echo"):], ",")
+            self.handleEcho(args, useWith)
+        elif line.startswith("save"):
+            args = self.stripAndSplitSeq(line[len("save"):], ",")
+            self.handleSave(args, useWith)
+        elif line.startswith("show"):
+            args = self.stripAndSplitSeq(line[len("show"):], ",")
+            self.handleShow(args)
+        elif line.startswith("line"):
+            args = self.stripAndSplitSeq(line[len("line"):], ",")
+            self.handleLine(args, useWith)
+        elif line.startswith("hline"):
+            args = self.stripAndSplitSeq(line[len("hline"):], ",")
+            self.handleVHLine(args, useWith, "h")
+        elif line.startswith("vline"):
+            args = self.stripAndSplitSeq(line[len("vline"):], ",")
+            self.handleVHLine(args, useWith, "v")
+        elif line.startswith("circle"):
+            args = self.stripAndSplitSeq(line[len("circle"):], ",")
+            self.handleCircle(args, useWith)
+            
+        elif line.count("=") > 0:
+            self.handleAssignment(line, dictionary)
+        else:
+            print colored("%sUNKNOWN COMMAND '%s'" % \
+                    (self.getIndentString(), line), "yellow")
+        
+    def handle_with_statements(self, line, useWith):
+        line, withArgs = line.split("with", 1)
+
+        if withArgs:
+            self.stat["indent"] += 1
+            print
+            self.run(withArgs.split(" and "), self.w)
+            self.stat["indent"] -= 1
+            useWith = True
+            
+        return line, useWith
     
     def run(self, lines, dictionary=None):
         """Takes a list of strings lines and runs them as egLan script
+        
+        Can be run with a custom dictionary, else it will be loaded from self.d
         """
         if type(lines) == str:
             lines = lines.split("\n")
@@ -210,9 +277,6 @@ class EglParser(object):
         #print "%s BEGIN %s line%s" % \
         #    ("\n" + "    "*self.stat["indent"] + "*"*8,
         #    len(lines), "s" if len(lines)!=1 else "")
-        
-        d = dictionary
-        gv = self.getValue
         
         for iteration, line in enumerate(lines):
             useWith = False
@@ -237,60 +301,14 @@ class EglParser(object):
                 self.w["VERBOSE"] = False
                 useWith = True
             
-            if "#" in line:
+            if "#" in line: # Strip comments
                 line = line[:line.find("#")]
-            
             
             #handle with statements
             if " with " in line:
-                line, withArgs = line.split("with", 1)
-
-                if withArgs:
-                    self.stat["indent"] += 1
-                    print
-                    self.run(withArgs.split(" and "), self.w)
-                    self.stat["indent"] -= 1
-                    useWith = True
+                line, useWith = self.handle_with_statements(line, useWith)
             
-            #regular handling
-            if line == "cls":
-                self.handleClearScreen()
-            elif line == "clear":
-                self.printNotImplemented("clear")
-                #self.handleClear()
-            elif line.startswith("quit") or line.startswith("exit") or \
-                    line == ":q":
-                self.handleQuit()
-            elif line.startswith("help"):
-                args = self.stripAndSplitSeq(line[len("help"):], ",")
-                self.handleHelp(args, useWith)
-            elif line.startswith("echo"):
-                args = self.stripAndSplitSeq(line[len("echo"):], ",")
-                self.handleEcho(args, useWith)
-            elif line.startswith("save"):
-                args = self.stripAndSplitSeq(line[len("save"):], ",")
-                self.handleSave(args, useWith)
-            elif line.startswith("show"):
-                args = self.stripAndSplitSeq(line[len("show"):], ",")
-                self.handleShow(args)
-            elif line.startswith("line"):
-                args = self.stripAndSplitSeq(line[len("line"):], ",")
-                self.handleLine(args, useWith)
-            elif line.startswith("hline"):
-                args = self.stripAndSplitSeq(line[len("hline"):], ",")
-                self.handleVHLine(args, useWith, "h")
-            elif line.startswith("vline"):
-                args = self.stripAndSplitSeq(line[len("vline"):], ",")
-                self.handleVHLine(args, useWith, "v")
-            elif line.startswith("circle"):
-                args = self.stripAndSplitSeq(line[len("circle"):], ",")
-                self.handleCircle(args, useWith)
-                
-            elif line.count("=") > 0:
-                self.handleAssignment(line, dictionary)
-            else:
-                print colored("%sUNKNOWN COMMAND '%s'" % \
-                        (self.getIndentString(), line), "yellow")
+            self.handle_regular_statements()
     #}}}
     #{{{ Handle functions
     def handleClearScreen(self, args=None, useWith=None):
@@ -375,11 +393,9 @@ class EglParser(object):
         """USER FUNCTION
         echo variablename
         Prints the value of a variable"""
-        gv = self.getValue
-        
         valuesToShow = []
         for arg in args:
-            val = gv(arg, useWith)
+            val = self.getValue(arg, useWith)
             valuesToShow.append("%s == %s" % (arg, val))
         
         self.printValueSet(", ".join(valuesToShow), useWith)
@@ -396,8 +412,8 @@ class EglParser(object):
         
         im = self.getImage()
         if im:
-            self.printSuccess("im.save(%s)" % repr(fileName), useWith)
             im.save(fileName)
+            self.printSuccess("im.save(%s)" % repr(fileName), useWith)
             
     def handleShow(self, args):
         """USER FUNCTION
